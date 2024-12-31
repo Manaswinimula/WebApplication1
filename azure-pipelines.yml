@@ -1,21 +1,14 @@
-# ASP.NET Core
-# Build and test ASP.NET Core projects targeting .NET Core.
-# Add steps that run tests, create a NuGet package, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
-
 variables:
 - name: BuildParameters.RestoreBuildProjects
   value: '**/*.csproj'
+- name: BuildParameters.TestProjects
+  value: '**/*[Tt]ests/*.csproj'
 - name: BuildConfiguration
   value: 'Release'
-- name: buildOutputFolder
-  value: $(Build.ArtifactStagingDirectory)
 trigger:
   branches:
     include:
     - refs/heads/master
-pool:
-  name: 'RameshPool'  # The pool name for your self-hosted agent, replace with the actual pool name
 name: $(date:yyyyMMdd)$(rev:.r)
 jobs:
 - job: Job_1
@@ -24,30 +17,30 @@ jobs:
     name: RameshPool
   steps:
   - checkout: self
-    clean: true
-    fetchTags: false
+    fetchDepth: 1
   - task: DotNetCoreCLI@2
     displayName: Restore
     inputs:
-      ConnectedServiceName: a052c6a2-b1e2-446d-a8e4-9886931a5000
+      ConnectedServiceName: bd758492-1f14-4d16-9a78-a10229baf138
       command: restore
       projects: $(BuildParameters.RestoreBuildProjects)
-  - task: CmdLine@2
-    inputs:
-          script: |
-            echo Artifact staging directory-Hello world-1
-            echo  $(Build.ArtifactStagingDirectory)
-            echo Hello world-1
   - task: DotNetCoreCLI@2
     displayName: Build
     inputs:
-      ConnectedServiceName: a052c6a2-b1e2-446d-a8e4-9886931a5000
+      ConnectedServiceName: bd758492-1f14-4d16-9a78-a10229baf138
       projects: $(BuildParameters.RestoreBuildProjects)
+      arguments: --configuration $(BuildConfiguration)
+  - task: DotNetCoreCLI@2
+    displayName: Test
+    enabled: False
+    inputs:
+      command: test
+      projects: $(BuildParameters.TestProjects)
       arguments: --configuration $(BuildConfiguration)
   - task: DotNetCoreCLI@2
     displayName: Publish
     inputs:
-      ConnectedServiceName: a052c6a2-b1e2-446d-a8e4-9886931a5000
+      ConnectedServiceName: bd758492-1f14-4d16-9a78-a10229baf138
       command: publish
       publishWebProjects: True
       projects: $(BuildParameters.RestoreBuildProjects)
@@ -58,7 +51,6 @@ jobs:
     condition: succeededOrFailed()
     inputs:
       PathtoPublish: $(build.artifactstagingdirectory)
-      #TargetPath: '\\my\share\$(Build.DefinitionName)\$(Build.BuildNumber)'
       ArtifactName: 'drop'
       publishLocation: 'Container'      
 - job: Deploy
@@ -66,7 +58,7 @@ jobs:
   dependsOn: Job_1
   condition: succeeded()
   pool:
-    name: 'RaneshPool'  # Ensure this is the correct pool with your self-hosted agent
+    name: 'RameshPool'  # Ensure this is the correct pool with your self-hosted agent
   steps:
     # Step 1: Download build artifacts
     - task: DownloadBuildArtifacts@0
@@ -79,13 +71,7 @@ jobs:
         downloadType: 'single'
         artifactName: 'drop'
         downloadPath: '$(build.artifactstagingdirectory)' #'$(Build.SourcesDirectory)'
-    - task: CmdLine@2
-      inputs:
-          script: |
-            echo Hello world-2
-            echo  $(Build.SourcesDirectory)
-            echo Hello world-2
-    # Step 2: Copy Web API files to IIS server folder
+        # Step 2: Copy Web API files to IIS server folder
     - task: ExtractFiles@1
       displayName: 'Extract published files'
       inputs:
@@ -97,13 +83,4 @@ jobs:
         SourceFolder: '$(build.artifactstagingdirectory)/extracted' #'$(buildOutputFolder)/webapi'
         Contents: '**'
         TargetFolder: 'C:\inetpub\wwwroot\Newfolder'  # Change this path to your IIS folder   
-    - task: CmdLine@2
-      inputs:
-          script: |
-            echo Artifact staging directory-Hello world-3
-            echo  $(Build.ArtifactStagingDirectory)
-            echo Hello world-3
-
-            echo Sources Directory- Hello world-3
-            echo  $(Build.SourcesDirectory)
-            echo Hello world-3
+    
